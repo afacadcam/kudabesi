@@ -1,0 +1,2 @@
+On the backend, i already added the new optional payload named `interaction_id`.
+I need you implement the enhancement to frontend by adding `interaction_id` that is returned from the backend to be re-sent, so that the previous chat context doesn't lost on the next user request.

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KudaBesi — Inspeksi Motor &amp; Sparepart Bekas</title>
+  <meta name="description"
+    content="KudaBesi: audit kelayakan motor dan sparepart bekas dari foto, suara mesin, dan dokumen STNK. Dapatkan skor kesehatan, estimasi biaya perbaikan, dan panduan tawar harga.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="icon" type="image/jpeg" href="src/images/logo.jpeg">
+  <link rel="stylesheet" href="src/styles/main.css">
+</head>
+
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <img class="brand-logo" src="src/images/logo.jpeg" alt="Logo KudaBesi" width="48" height="48">
+        <div>
+          <h1>KudaBesi</h1>
+          <p>Inspeksi motor &amp; sparepart bekas — foto, suara, dokumen.</p>
+        </div>
+      </div>
+      <button type="button" id="open-chat" class="topbar-link gemini-btn" title="Buka Chat Google Gemini"
+        aria-haspopup="dialog">
+        <svg class="gemini-sparkle" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"
+            fill="url(#gemini-sparkle-top)" />
+          <defs>
+            <linearGradient id="gemini-sparkle-top" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#2563eb" />
+              <stop offset="0.5" stop-color="#7c3aed" />
+              <stop offset="1" stop-color="#db2777" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <span>Gemini AI Chat</span>
+      </button>
+    </header>
+
+    <main class="layout">
+      <!-- ============ FORM ============ -->
+      <form id="inspect-form" class="panel form-panel" novalidate>
+        <section class="step" aria-labelledby="step-1">
+          <h2 id="step-1"><span class="step-no">01</span> Yang diinspeksi</h2>
+          <div class="choice-group" role="radiogroup" aria-labelledby="step-1">
+            <label class="choice">
+              <input type="radio" name="category" value="unit" checked>
+              <span class="choice-body">
+                <strong>Unit motor</strong>
+                <small>Fisik, mesin, STNK, pajak</small>
+              </span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="category" value="part">
+              <span class="choice-body">
+                <strong>Sparepart</strong>
+                <small>CVT, shock, master rem, dll</small>
+              </span>
+            </label>
+          </div>
+        </section>
+
+        <section class="step" aria-labelledby="step-2">
+          <h2 id="step-2"><span class="step-no">02</span> Foto <span class="req">wajib</span></h2>
+          <p class="hint" id="photo-hint"></p>
+          <div id="photo-slots" class="slots"></div>
+        </section>
+
+        <section class="step" aria-labelledby="step-3">
+          <h2 id="step-3"><span class="step-no">03</span> Suara <span id="audio-req-badge" class="req">wajib</span></h2>
+          <p class="hint" id="audio-hint"></p>
+          <div class="audio-actions">
+            <label class="btn btn-ghost" for="audio-file">Unggah file audio</label>
+            <input id="audio-file" class="visually-hidden" type="file" accept="audio/*">
+            <button type="button" class="btn btn-ghost" id="open-recorder">Rekam dari mic</button>
+          </div>
+          <div id="audio-preview" class="audio-preview" hidden>
+            <div class="audio-meta">
+              <span id="audio-name" class="mono"></span>
+              <button type="button" class="link-btn" id="audio-remove">Hapus</button>
+            </div>
+            <audio id="audio-player" controls></audio>
+          </div>
+        </section>
+
+        <section class="step" id="unit-only" aria-labelledby="step-4">
+          <h2 id="step-4"><span class="step-no">04</span> Surat &amp; tahun</h2>
+
+          <fieldset class="field">
+            <legend>STNK</legend>
+            <div class="seg">
+              <label><input type="radio" name="stnk_status" value="available" checked><span>Ada STNK</span></label>
+              <label><input type="radio" name="stnk_status" value="none"><span>Tidak ada</span></label>
+            </div>
+            <div id="stnk-upload" class="file-row">
+              <label class="btn btn-ghost" for="stnk-file">Pilih file STNK</label>
+              <input id="stnk-file" class="visually-hidden" type="file" accept="image/*,application/pdf">
+              <span id="stnk-name" class="file-name">Belum ada file (wajib)</span>
+            </div>
+            <p id="bodong-note" class="callout callout-danger" hidden>Tanpa STNK unit dianggap bodong. Nilai pasar
+              dipotong ±40–60%.</p>
+          </fieldset>
+
+          <div class="field">
+            <label for="service-file">Buku servis <em>(pdf)</em> <span class="opt">opsional</span></label>
+            <div class="file-row">
+              <label class="btn btn-ghost" for="service-file">Pilih file</label>
+              <input id="service-file" class="visually-hidden" type="file" accept="image/*,application/pdf">
+              <span id="service-name" class="file-name">Kosong = AI mencari referensi pabrikan</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="extra-docs-file">Dokumen pendukung lain <span class="opt">opsional</span></label>
+            <div class="file-row">
+              <label class="btn btn-ghost" for="extra-docs-file">Tambah dokumen</label>
+              <input id="extra-docs-file" class="visually-hidden" type="file" multiple accept="image/*,application/pdf">
+              <span id="extra-docs-hint" class="file-name">BPKB, faktur, nota servis, dll (bisa &gt;1 file)</span>
+            </div>
+            <div id="extra-docs-list" class="doc-list"></div>
+          </div>
+
+          <div class="field">
+            <label for="year-select">Tahun</label>
+            <div class="year-row">
+              <select id="year-select" name="year_select"></select>
+              <input id="year-custom" name="year_custom" type="text" inputmode="numeric" maxlength="4"
+                placeholder="mis. 1987" hidden aria-label="Tahun sebelum 2000">
+            </div>
+          </div>
+        </section>
+
+        <section class="step" aria-labelledby="step-5">
+          <h2 id="step-5"><span class="step-no">05</span> Detail &amp; harga</h2>
+          <div class="field">
+            <label for="notes" id="notes-label">Merek &amp; tipe motor <span class="opt">opsional</span></label>
+            <input id="notes" name="notes" type="text" maxlength="120" autocomplete="off"
+              placeholder="mis. Yamaha NMAX Turbo">
+          </div>
+          <div class="field">
+            <label for="offered-price">Harga ditawarkan penjual</label>
+            <div class="money">
+              <span class="mono">Rp</span>
+              <input id="offered-price" name="offered_price" type="text" inputmode="numeric" autocomplete="off"
+                placeholder="22.000.000">
+            </div>
+          </div>
+        </section>
+
+        <div id="form-errors" class="form-errors" role="alert" aria-live="polite" hidden></div>
+        <button type="submit" id="submit-btn" class="btn btn-primary">Jalankan audit</button>
+      </form>
+
+      <!-- ============ LAPORAN ============ -->
+      <section class="panel report-panel" id="report-panel" aria-live="polite" aria-label="Laporan inspeksi">
+        <div id="report-empty" class="report-empty">
+          <p class="eyebrow">Laporan</p>
+          <h2>Belum ada audit</h2>
+          <p>Lengkapi form di sebelah, lalu jalankan audit. Hasil berupa skor kesehatan, temuan fisik &amp; suara,
+            status STNK, dan matriks harga akan tampil di sini.</p>
+          <ul class="report-empty-list">
+            <li>Skor 0–100</li>
+            <li>Biaya perbaikan yang perlu disiapkan</li>
+            <li>Rentang harga wajar &amp; target tawar</li>
+          </ul>
+        </div>
+
+        <div id="report-loading" class="report-loading" hidden>
+          <div class="scanner" aria-hidden="true"><span></span></div>
+          <p id="loading-text" class="mono">Menyiapkan data…</p>
+        </div>
+
+        <div id="report-content" class="report-content" hidden></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ============ MODAL: REKAM SUARA ============ -->
+  <dialog id="recorder-dialog" class="dialog" aria-labelledby="rec-title">
+    <form method="dialog" class="dialog-head">
+      <h3 id="rec-title">Rekam suara</h3>
+      <button class="icon-btn" aria-label="Tutup" id="rec-close">×</button>
+    </form>
+    <p class="hint" id="rec-hint">Dekatkan mic ke sumber suara (±10–15 cm). Rekam 5–15 detik.</p>
+    <canvas id="rec-canvas" class="wave" width="480" height="96" aria-hidden="true"></canvas>
+    <p class="rec-timer mono" id="rec-timer">00:00 / 00:15</p>
+    <p id="rec-error" class="callout callout-danger" hidden></p>
+    <audio id="rec-playback" controls hidden></audio>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-primary" id="rec-toggle">Mulai rekam</button>
+      <button type="button" class="btn btn-ghost" id="rec-use" disabled>Gunakan rekaman</button>
+    </div>
+  </dialog>
+
+  <!-- ============ MODAL: STNK TIDAK ADA ============ -->
+  <dialog id="bodong-dialog" class="dialog" aria-labelledby="bodong-title">
+    <div class="dialog-head">
+      <h3 id="bodong-title">Unit tanpa STNK</h3>
+    </div>
+    <p>Kendaraan tanpa surat sah berisiko ditilang, tidak bisa dibalik nama, dan sulit dijual lagi. Audit tetap bisa
+      dijalankan, tetapi:</p>
+    <ul class="plain-list">
+      <li>Nilai pasar wajar diturunkan sekitar 40–60%.</li>
+      <li>Skor kesehatan dibatasi maksimal 60.</li>
+    </ul>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-danger" id="bodong-confirm">Saya paham, lanjutkan</button>
+      <button type="button" class="btn btn-ghost" id="bodong-cancel">Batal, saya ada STNK</button>
+    </div>
+  </dialog>
+
+  <!-- ============ MODAL: GEMINI CHAT (chat.html dimuat via iframe) ============ -->
+  <dialog id="chat-dialog" class="dialog dialog-chat" aria-label="Google Gemini AI Chat" closedby="closerequest">
+    <iframe id="chat-frame" class="chat-frame" title="Google Gemini AI Chat" data-src="chat.html?embed=1"></iframe>
+  </dialog>
+
+  <!-- ============ MODAL: MARKETPLACE ============ -->
+  <dialog id="market-dialog" class="dialog dialog-wide" aria-labelledby="market-title" closedby="any">
+    <div class="dialog-head">
+      <h3 id="market-title">Draf iklan marketplace</h3>
+      <button type="button" class="icon-btn" aria-label="Tutup" data-close="market-dialog">×</button>
+    </div>
+    <p class="callout">Hanya contoh format iklan. Tidak ada tautan keluar.</p>
+    <div class="tabs" id="market-tabs" role="tablist" aria-label="Platform"></div>
+    <div id="market-body" class="market-body"></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-primary" id="market-copy">Salin judul &amp; deskripsi</button>
+      <span id="market-copy-status" class="mono" role="status"></span>
+    </div>
+  </dialog>
+
+  <!-- ============ MODAL: CETAK ============ -->
+  <dialog id="print-dialog" class="dialog dialog-wide" aria-labelledby="print-title" closedby="any">
+    <div class="dialog-head no-print">
+      <h3 id="print-title">Pratinjau laporan</h3>
+      <button type="button" class="icon-btn" aria-label="Tutup" data-close="print-dialog">×</button>
+    </div>
+    <div id="print-sheet" class="print-sheet"></div>
+    <div class="dialog-actions no-print">
+      <button type="button" class="btn btn-primary" id="print-run">Cetak / simpan PDF</button>
+    </div>
+  </dialog>
+
+  <script src="src/scripts/kudabesi.api-client.js"></script>
+  <script src="src/scripts/kudabesi.ui-events.js"></script>
+</body>
+
+</html>
