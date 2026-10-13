@@ -91,7 +91,7 @@ MODEL=gemini-3.5-flash-lite
 
 ---
 
-## 🚀 Panduan Instalasi & Menjalankan
+## Panduan Instalasi & Menjalankan
 
 ### 1. Kloning Repositori
 ```bash
