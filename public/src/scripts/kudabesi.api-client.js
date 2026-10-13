@@ -65,6 +65,9 @@
     }
 
     if (input.category === 'unit') {
+      if (input.odometer !== undefined && input.odometer !== null) {
+        fd.append('odometer', String(input.odometer));
+      }
       fd.append('stnk_status', input.stnkStatus || 'none');
       fd.append('year', input.year || '');
       if (input.stnkStatus === 'available' && input.stnkFile && input.stnkFile.name) {
@@ -130,34 +133,151 @@
   }
 
   const row = (label, value, cls) => h('div', 'kv' + (cls ? ' ' + cls : ''), [h('dt', null, label), h('dd', 'mono', value)]);
+  function formatPointContent(raw) {
+    let text = (raw || '').trim().replace(/[,;]\s*$/, '');
+    const colonIdx = text.indexOf(':');
+
+    if (colonIdx > 0 && colonIdx < 60) {
+      const label = text.substring(0, colonIdx).trim();
+      let after = text.substring(colonIdx + 1).trim();
+
+      // Cek repetisi: jika 'after' diawali dengan 'label' yang berulang
+      const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const repeatRegex = new RegExp(`^${escapedLabel}\\b\\s*`, 'i');
+      if (repeatRegex.test(after)) {
+        after = after.replace(repeatRegex, '').trim();
+      }
+
+      // Bersihkan tanda titik dua, strip, atau spasi berlebih di awal after
+      after = after.replace(/^[:\-\*\s]+/, '').trim();
+
+      // Jika kata pertama adalah kata sambung kopula ("adalah", "merupakan", "yaitu", "ialah")
+      const isCopula = /^(adalah|merupakan|yaitu|ialah)\b/i.test(after);
+
+      const span = document.createElement('span');
+      span.className = 'note-body';
+      const strong = document.createElement('strong');
+
+      if (isCopula) {
+        strong.textContent = label;
+        span.append(strong, ' ' + after);
+      } else {
+        strong.textContent = label + ':';
+        span.append(strong, after ? ' ' + after : '');
+      }
+      return span;
+    }
+
+    const span = document.createElement('span');
+    span.className = 'note-body';
+    span.textContent = text;
+    return span;
+  }
+
+  function parsePoints(rawText) {
+    if (!rawText || typeof rawText !== 'string') return null;
+    const text = rawText.trim();
+    if (!text) return null;
+
+    // 1. Pola huruf dalam kurung: (a) ..., (b) ..., (c) ...
+    const letterMatches = text.match(/\(([a-z])\)\s*/gi);
+    if (letterMatches && letterMatches.length >= 2) {
+      const parts = text.split(/(?=\([a-z]\))/gi).map((s) => s.trim()).filter(Boolean);
+      return {
+        type: 'letter',
+        items: parts.map((part) => {
+          const m = part.match(/^\(([a-z])\)\s*/i);
+          const marker = m ? `(${m[1].toLowerCase()})` : '';
+          const content = part.replace(/^\(([a-z])\)\s*/i, '').trim();
+          return { marker, content };
+        }),
+      };
+    }
+
+    // 2. Pola angka dalam kurung atau numbering: (1) ... (2) ...
+    const numParenMatches = text.match(/\((\d+)\)\s*/g);
+    if (numParenMatches && numParenMatches.length >= 2) {
+      const parts = text.split(/(?=\(\d+\))/g).map((s) => s.trim()).filter(Boolean);
+      return {
+        type: 'number',
+        items: parts.map((part) => {
+          const m = part.match(/^\((\d+)\)\s*/);
+          const marker = m ? `(${m[1]})` : '';
+          const content = part.replace(/^\((\d+)\)\s*/, '').trim();
+          return { marker, content };
+        }),
+      };
+    }
+
+    // 3. Pola baris baru dengan bullet (- atau * atau baris terpisah)
+    if (text.includes('\n')) {
+      const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+      if (lines.length >= 2) {
+        return {
+          type: 'bullet',
+          items: lines.map((line) => {
+            const m = line.match(/^([a-z]\.|\d+\.|\([a-z0-9]+\))\s*/i);
+            const marker = m ? m[1] : '-';
+            const content = line.replace(/^([a-z]\.|\d+\.|\([a-z0-9]+\)|[\-\*\u2022])\s*/i, '').trim();
+            return { marker, content };
+          }),
+        };
+      }
+    }
+
+    // 4. Pola dipisahkan titik koma (;): misal "poinA: poinA adalah...; poinB: poinB adalah...;"
+    if (text.includes(';')) {
+      const semiParts = text.split(';').map((s) => s.trim()).filter(Boolean);
+      if (semiParts.length >= 2) {
+        return {
+          type: 'bullet',
+          items: semiParts.map((part) => ({
+            marker: '-',
+            content: part.replace(/^[\-\*\u2022]\s*/, '').trim(),
+          })),
+        };
+      }
+    }
+
+    // 5. Pola dipisahkan koma tapi tiap bagian memiliki label titik dua
+    if (text.includes(',') && (text.match(/:/g) || []).length >= 2) {
+      const commaParts = text.split(/,\s*(?=[A-Za-z0-9\s]{2,30}:)/).map((s) => s.trim()).filter(Boolean);
+      if (commaParts.length >= 2) {
+        return {
+          type: 'bullet',
+          items: commaParts.map((part) => ({
+            marker: '-',
+            content: part.replace(/^[\-\*\u2022]\s*/, '').trim(),
+          })),
+        };
+      }
+    }
+
+    return null;
+  }
+
   function block(title, text) {
     if (!text) return null;
-    // Deteksi pola (a)...; (b)...; atau (a)... (b)... dan render sebagai ordered list
-    const bulletPattern = /\(([a-z])\)\s*/gi;
-    const hasLetterBullets = (text.match(bulletPattern) || []).length >= 2;
     const div = h('div', 'note', [h('h4', null, title)]);
-    if (hasLetterBullets) {
-      const parts = text.split(/(?=\([a-z]\))/gi).filter(s => s.trim());
-      const ol = document.createElement('ol');
-      ol.className = 'note-list';
-      ol.type = 'a';
-      parts.forEach(part => {
-        const clean = part.replace(/^\([a-z]\)\s*/i, '').replace(/;\s*$/, '').trim();
-        if (clean) {
-          const li = document.createElement('li');
-          // Bold label sebelum titik dua
-          const colonIdx = clean.indexOf(':');
-          if (colonIdx > 0 && colonIdx < 60) {
-            const strong = document.createElement('strong');
-            strong.textContent = clean.substring(0, colonIdx + 1);
-            li.append(strong, ' ' + clean.substring(colonIdx + 1).trim());
-          } else {
-            li.textContent = clean;
-          }
-          ol.append(li);
-        }
+    const parsed = parsePoints(text);
+
+    if (parsed && parsed.items.length) {
+      const ul = document.createElement('ul');
+      ul.className = `note-list note-${parsed.type}-list`;
+      parsed.items.forEach(({ marker, content }) => {
+        if (!content) return;
+        const li = document.createElement('li');
+        li.className = 'note-item';
+
+        const markerEl = document.createElement('span');
+        markerEl.className = 'note-marker' + (marker === '-' ? ' note-bullet-marker' : '');
+        markerEl.textContent = marker;
+
+        const bodyEl = formatPointContent(content);
+        li.append(markerEl, bodyEl);
+        ul.append(li);
       });
-      div.append(ol);
+      div.append(ul);
     } else {
       div.append(h('p', null, text));
     }
@@ -197,6 +317,26 @@
     ];
     const lvl = s.status === 'valid' ? 'good' : s.status === 'not_applicable' ? 'caution' : 'danger';
     return card('Legalitas & STNK', [h('dl', 'kv-list', items), block('Catatan', s.notes)], `card-${lvl}`);
+  }
+
+  function odometerCard(r) {
+    const o = r.odometer_audit || {};
+    const inputKm = num(o.claimed_km || o.input_km);
+    const avgYear = num(o.avg_km_per_year);
+    const statusMap = {
+      normal: 'Wajar / Normal',
+      low: 'Rendah (Jarang Pakai / Simpanan)',
+      high: 'Tinggi (Motor Operasional)',
+      suspicious: 'Mencurigakan (Indikasi Reset Odometer)',
+    };
+    const lvl = o.usage_status === 'suspicious' ? 'danger' : o.usage_status === 'high' ? 'warning' : 'good';
+    const items = [
+      row('Odometer tercatat', `${inputKm.toLocaleString('id-ID')} KM`),
+      avgYear ? row('Rata-rata / tahun', `${avgYear.toLocaleString('id-ID')} KM/thn`) : null,
+      row('Status pemakaian', statusMap[o.usage_status] || o.usage_status || '-'),
+      o.detected_km ? row('Terbaca di foto', `${num(o.detected_km).toLocaleString('id-ID')} KM`) : null,
+    ];
+    return card('Audit Odometer & Kilometer', [h('dl', 'kv-list', items), block('Analisis Odometer', o.notes)], `card-${lvl}`);
   }
 
   function repairTotal(r) {
@@ -247,10 +387,10 @@
   }
 
   const MARKETPLACE_LOGOS = {
-    Tokopedia: 'src/images/logo-tokopedia.jpg',
-    Shopee: 'src/images/logo-shopee.webp',
-    Blibli: 'src/images/logo-blibli.webp',
-    OLX: 'src/images/log_olx.png',
+    Tokopedia: 'src/images/logo-tokopedia.png',
+    Shopee: 'src/images/logo-shopee.png',
+    Blibli: 'src/images/logo-blibli.png',
+    OLX: 'src/images/logo-olx.png',
   };
 
   function marketplaceCard(r) {
@@ -344,6 +484,7 @@
     container.replaceChildren(...[
       identityCard(r),
       isUnit ? stnkCard(r) : null,
+      isUnit && r.odometer_audit ? odometerCard(r) : null,
       inspectionCard(r),
       priceCard(r),
       mk,
@@ -378,14 +519,15 @@
         ['Verdict', r.verdict?.badge || '-'],
       ]),
       h('p', null, r.verdict?.summary || ''),
-      p.category === 'part' ? null : h('h4', null, 'STNK & pajak'),
+      p.category === 'part' ? null : h('h4', null, 'STNK, Pajak & Odometer'),
       p.category === 'part' ? null : rows([
-        ['Status', STNK_LABEL[s.status] || s.status || '-'], s.plate ? ['Nopol', s.plate] : null,
+        ['Status STNK', STNK_LABEL[s.status] || s.status || '-'], s.plate ? ['Nopol', s.plate] : null,
         ['Pajak', s.tax_status || '-'], ['Estimasi denda', rupiah(s.tax_penalty_est)],
+        r.odometer_audit ? ['Odometer', `${num(r.odometer_audit.claimed_km || r.odometer_audit.input_km).toLocaleString('id-ID')} KM (${r.odometer_audit.usage_status || 'normal'})`] : null,
       ]),
       h('h4', null, 'Temuan'),
-      h('p', null, `Visual: ${v.physical_notes || '-'}`),
-      h('p', null, `Suara: ${v.sound_notes || '-'}`),
+      block('Visual', v.physical_notes),
+      block('Suara', v.sound_notes),
       h('h4', null, 'Harga'),
       rows([
         ['Harga penjual', rupiah(m.offered_price)], ['Biaya perbaikan', rupiah(repairTotal(r))],

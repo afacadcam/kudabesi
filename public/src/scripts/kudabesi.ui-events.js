@@ -488,6 +488,11 @@
   function clearErrors() { $('form-errors').hidden = true; }
 
   const parsePrice = () => Number($('offered-price').value.replace(/\D/g, '')) || 0;
+  const parseOdometer = () => {
+    const el = $('odometer-km');
+    if (!el || !el.value.trim()) return null;
+    return Number(el.value.replace(/\D/g, ''));
+  };
 
   function validate() {
     const errors = [];
@@ -497,6 +502,8 @@
     if (have < need) errors.push(`Foto wajib kurang: baru ${have} dari ${need} sisi utama terisi.`);
     if (isUnit && !state.audio) errors.push('Audio suara mesin wajib untuk unit motor: unggah file atau rekam dari mic.');
     if (isUnit) {
+      const odo = parseOdometer();
+      if (odo === null || isNaN(odo)) errors.push('Isi angka odometer (kilometer) motor.');
       const stnkNone = form.querySelector('input[name="stnk_status"]:checked').value === 'none';
       if (!stnkNone && !state.stnk) errors.push('Lampirkan file STNK, atau pilih "Tidak ada".');
       const y = currentYear();
@@ -542,6 +549,7 @@
       audio: state.audio,
       notes: $('notes').value.trim(),
       price: parsePrice(),
+      odometer: isUnit ? parseOdometer() : undefined,
       stnkStatus: isUnit ? form.querySelector('input[name="stnk_status"]:checked').value : undefined,
       stnkFile: state.stnk,
       serviceFile: state.service,
@@ -576,6 +584,7 @@
     state.stnk = null;
     state.service = null;
     setAudio(null);
+    if ($('odometer-km')) $('odometer-km').value = '';
     renderExtraDocs();
     ['stnk-name', 'service-name'].forEach((id) => {
       const el = $(id);
@@ -680,6 +689,11 @@
 
     $('offered-price').addEventListener('input', (e) => {
       const digits = e.target.value.replace(/\D/g, '').slice(0, 12);
+      e.target.value = digits ? Number(digits).toLocaleString('id-ID') : '';
+    });
+
+    $('odometer-km')?.addEventListener('input', (e) => {
+      const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
       e.target.value = digits ? Number(digits).toLocaleString('id-ID') : '';
     });
 

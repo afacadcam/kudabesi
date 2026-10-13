@@ -29,6 +29,7 @@ Pengguna memilih salah satu dari dua kategori utama di awal:
 | **Foto Fisik** | **Wajib min. 4 sisi** (Depan, Belakang, Sisi Kanan, Sisi Kiri/Mesin) | **Wajib min. 2 sisi** (Tampak Depan/Atas, Dudukan/Detail Ulir) | Menggunakan slot kartu dropzone visual interaktif. |
 | **Audio Rekaman** | **WAJIB** (Suara starter, idle putaran mesin, atau akselerasi) | **WAJIB** (Suara ketukan fisik part, koclak bearing, desis shock) | Mendukung **Upload File Audio** (`.mp3`, `.wav`, `.m4a`, `.ogg`) dan tombol **🎙️ Rekam Langsung dari Mic**. |
 | **Opsi STNK** | Pilihan: **Ada STNK** / **Tidak Ada (Bodong)** | *Tidak Berlaku (Hidden)* | Jika **Ada**, upload STNK **Wajib**. Jika **Tidak Ada**, motor diidentifikasi sebagai **Motor Bodong** dengan pinalti harga drastis. |
+| **Angka Odometer (KM)** | **WAJIB** (Input nominal kilometer saat ini) | *Tidak Berlaku (Hidden)* | Basis evaluasi rasio pemakaian tahunan, motor capek, dan indikasi reset speedometer. Foto spidometer bersifat opsional. |
 | **Buku Servis** | **Opsional** (Upload PDF/Foto) | *Tidak Berlaku (Hidden)* | Referensi pabrikan (Wahana Honda: `https://www.wahanahonda.com/assets/upload/buku_service/*.pdf`, Yamaha & merek lain via web resmi). |
 | **Pilihan Tahun** | Dropdown **2000 – 2026** + Opsi **Tahun Lawas (< 2000, teks kustom)** | *Tidak Berlaku (Hidden)* | Input tahun lawas muncul dinamis jika dipilih opsi kustom. |
 | **Teks Tambahan** | Opsional (Tulis merk & tipe jika diketahui) | Opsional (Tulis nama part jika diketahui) | Membantu akurasi pengenalan AI. |
@@ -50,6 +51,9 @@ Pengguna memilih salah satu dari dua kategori utama di awal:
    * Menganalisis rekaman suara mesin/part: mendeteksi gejala knocking, rantai keteng kendor, roller/mangkok CVT gredek, bearing aus, atau kebocoran kompresi/knalpot.
 4. **Analisis Fisik (Gambar)**:
    * Menilai kerapian cat bodi, keausan ban, ketebalan piringan cakram, rembesan oli di blok mesin, karat/keropos pada sasis/rangka.
+5. **Audit Odometer & Jarak Tempuh (Khusus Unit)**:
+   * Menghitung rasio pemakaian tahunan terhadap tahun pembuatan motor (normal 8.000–12.000 km/tahun).
+   * Deteksi silang manipulasi/reset odometer: jika KM rendah tapi piringan cakram tipis bergelombang, ban aus, atau buku servis mencatat angka lebih tinggi, AI menandai status mencurigakan (*suspicious*), menurunkan skor kesehatan, dan memuat argumen tawar di tempat.
 
 ---
 
@@ -119,6 +123,13 @@ Agar antarmuka tetap bersih (*clean layout*) tanpa menumpuk elemen di halaman ut
         "status": "valid | bodong | mismatch",
         "tax_status": "string",
         "tax_penalty_est": 0,
+        "notes": "string"
+      },
+      "odometer_audit": {
+        "claimed_km": 0,
+        "detected_km": 0,
+        "usage_status": "low | normal | high | suspicious",
+        "avg_km_per_year": 0,
         "notes": "string"
       },
       "visual_sound_inspection": {

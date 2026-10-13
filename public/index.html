@@ -91,7 +91,17 @@
         </section>
 
         <section class="step" id="unit-only" aria-labelledby="step-4">
-          <h2 id="step-4"><span class="step-no">04</span> Surat &amp; tahun</h2>
+          <h2 id="step-4"><span class="step-no">04</span> Surat, Odometer &amp; Tahun</h2>
+
+          <div class="field">
+            <label for="odometer-km">Angka Odometer / Kilometer <span class="req">(wajib)</span></label>
+            <div class="money">
+              <input id="odometer-km" name="odometer_km" type="text" inputmode="numeric" autocomplete="off"
+                placeholder="mis. 18.500">
+              <span class="mono" style="font-weight: 600; color: var(--muted);">KM</span>
+            </div>
+            <p class="hint" style="margin-top: 6px; margin-bottom: 0;">Foto spidometer opsional (bisa diunggah di slot foto tambahan). Jika ada, AI mencocokkan angka vs fisik meteran &amp; keausan motor.</p>
+          </div>
 
           <fieldset class="field">
             <legend>STNK</legend>
@@ -102,7 +112,7 @@
             <div id="stnk-upload" class="file-row">
               <label class="btn btn-ghost" for="stnk-file">Pilih file STNK</label>
               <input id="stnk-file" class="visually-hidden" type="file" accept="image/*,application/pdf">
-              <span id="stnk-name" class="file-name">Belum ada file (wajib)</span>
+              <span id="stnk-name" class="file-name">Belum ada file <span class="req">(wajib)</span></span>
             </div>
             <p id="bodong-note" class="callout callout-danger" hidden>Tanpa STNK unit dianggap bodong. Nilai pasar
               dipotong ±40–60%.</p>

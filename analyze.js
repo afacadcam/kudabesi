@@ -67,14 +67,21 @@ Aturan analisis:
      g. Idle: apakah putaran stasioner stabil atau naik-turun (hunting)?
      h. Getaran abnormal: apakah ada vibrasi berlebih yang terdengar?
    - Jika ada suara yang ambigu/tidak jelas, tulis "terdeteksi kemungkinan [X] namun perlu pemeriksaan fisik langsung untuk konfirmasi" — JANGAN abaikan.
-   - Format sound_notes: deskripsikan APA yang terdengar secara spesifik (frekuensi, kapan muncul, intensitas), bukan hanya label generik.
+   - Format penulisan sound_notes (WAJIB ter-break per baris rapi):
+     * Tulis setiap temuan komponen dalam baris baru menggunakan format bullet (- [Komponen]: [temuan spesifik]) atau penomoran huruf ((a), (b), dst).
+     * DILARANG melakukan pengulangan kata antara nama komponen dan deskripsinya. Contoh BENAR: "- Roller CVT: terdengar halus dan tidak gredek"; Contoh SALAH: "- Roller CVT: Roller CVT terdengar...".
    - Khusus kategori PART: jika audio tidak dilampirkan, isi sound_notes dengan "Audio tidak dilampirkan (inspeksi difokuskan pada kondisi fisik part)".
 3. Foto: kondisi cat, ban, cakram, rembes oli, karat, retak, modifikasi, kelengkapan.
 4. UNIT dengan STNK: cocokkan nopol/merek/tipe/tahun/warna dengan fisik. Toleransi privasi: Jika nopol di foto motor disensor/diblur/ditutup demi privasi, JANGAN tandai sebagai "mismatch"; lakukan validasi silang melalui kecocokan Merek, Tipe varian, Warna bodi, dan Generasi tahun fisik motor. Tetap catat nopol dari STNK untuk cek pajak, dan beri keterangan pada notes bahwa nopol fisik disamarkan untuk privasi. Hitung status pajak dan estimasi denda keterlambatan (PKB + SWDKLLJ) berdasarkan masa berlaku di STNK dan tanggal hari ini. Jika STNK ADA tapi belum 5 tahunan/ganti plat, catat.
 5. UNIT tanpa STNK (bodong): status "bodong", nilai pasar wajar turun 40%-60% dari harga unit bersurat, dan jelaskan di verdict & notes. Skor kesehatan tidak boleh di atas 60.
 6. PART: abaikan STNK (stnk_audit.status = "not_applicable").
 7. Harga: hitung "fair_price_min/max" dari pasaran bekas setelah dikurangi biaya perbaikan & denda pajak. "recommended_offer" adalah harga tawar konkret. "estimated_resale_value" adalah perkiraan harga jual lagi setelah perbaikan. "negotiation_talking_point" berisi argumen teknis singkat berbasis temuan.
-8. Marketplace: buat draf judul & deskripsi iklan dan sertakan 4 platform utama dalam urutan: Tokopedia, Shopee, Blibli, dan OLX beserta estimasi harga masing-masing.
+8. Odometer & Kilometer (Khusus UNIT):
+   - Periksa seluruh foto: jika ada foto spidometer/odometer (analog/digital), baca angka KM via visual/OCR dan bandingkan dengan angka klaim user. Jika tidak ada foto spidometer, jadikan angka klaim input user sebagai basis audit.
+   - Evaluasi rasio pemakaian tahunan terhadap tahun motor (standar normal Indonesia 8.000–12.000 KM/tahun, < 5.000 KM/tahun = rendah/simpanan, > 20.000 KM/tahun = tinggi/operasional).
+   - Deteksi indikasi manipulasi/reset odometer: Jika angka KM rendah (< 15.000 KM) namun keausan fisik parah (cakram bergelombang dalam, ban gundul, handgrip/footstep licin, mesin kusam/rembes), atau jika catatan KM di buku servis lebih tinggi dari angka sekarang, tandai usage_status sebagai "suspicious", turunkan health_score, dan sertakan di negotiation_talking_point.
+   - Khusus kategori PART: isi odometer_audit dengan null.
+9. Marketplace: buat draf judul & deskripsi iklan dan sertakan 4 platform utama dalam urutan: Tokopedia, Shopee, Blibli, dan OLX beserta estimasi harga masing-masing.
 
 Format keluaran: HANYA satu objek JSON valid (tanpa markdown, tanpa teks lain) dengan skema persis:
 {
@@ -82,6 +89,7 @@ Format keluaran: HANYA satu objek JSON valid (tanpa markdown, tanpa teks lain) d
   "health_score": number(0-100),
   "verdict": { "badge": string, "level": "good"|"caution"|"warning"|"danger", "summary": string },
   "stnk_audit": { "status": "valid"|"bodong"|"mismatch"|"unreadable"|"not_applicable", "plate": string|null, "tax_status": string, "tax_due_date": string|null, "tax_penalty_est": number, "notes": string },
+  "odometer_audit": { "claimed_km": number, "detected_km": number|null, "usage_status": "low"|"normal"|"high"|"suspicious", "avg_km_per_year": number|null, "notes": string }|null,
   "visual_sound_inspection": { "physical_notes": string, "sound_notes": string, "service_book_notes": string, "repair_items": [ { "item": string, "est_cost": number } ] },
   "price_matrix": { "offered_price": number, "total_repair_cost": number, "tax_penalty_est": number, "fair_price_min": number, "fair_price_max": number, "recommended_offer": number, "estimated_resale_value": number, "bodong_adjustment_note": string|null, "negotiation_talking_point": string },
   "marketplace_sample": { "suggested_title": string, "description": string, "platforms": [ { "name": "Tokopedia"|"Shopee"|"Blibli"|"OLX", "est_price": number } ] }
@@ -120,12 +128,16 @@ export const createAnalyzeHandlers = (ai, model) => {
         const audio = (files.audio || [])[0];
         const stnk = (files.stnk || [])[0];
         const docFiles = [...(files.service_book || []), ...(files.extra_docs || [])];
-        const { category, stnk_status: stnkStatus, year, notes } = req.body;
+        const { category, stnk_status: stnkStatus, year, notes, odometer } = req.body;
         const offeredPrice = Number(String(req.body.offered_price || "").replace(/\D/g, ""));
+        const odometerKm = Number(String(odometer || "").replace(/\D/g, ""));
 
         if (!["unit", "part"].includes(category)) return fail(res, 400, "Kategori harus 'unit' atau 'part'.");
         const minPhotos = category === "unit" ? 4 : 2;
         if (category === "unit" && !audio) return fail(res, 400, "Audio suara mesin wajib dilampirkan untuk inspeksi unit motor.");
+        if (category === "unit" && (odometer === undefined || odometer === null || String(odometer).trim() === "")) {
+            return fail(res, 400, "Angka odometer (kilometer) wajib diisi untuk inspeksi unit motor.");
+        }
         if (!offeredPrice) return fail(res, 400, "Harga yang ditawarkan wajib diisi.");
 
         const hasStnk = category === "unit" && stnkStatus === "available";
@@ -156,6 +168,7 @@ export const createAnalyzeHandlers = (ai, model) => {
         const brief = [
             `Kategori: ${category === "unit" ? "UNIT MOTOR" : "SPAREPART"}`,
             category === "unit" ? `Tahun (input user): ${year || "tidak diisi"}` : null,
+            category === "unit" ? `Angka Odometer / Jarak Tempuh (input user): ${odometerKm.toLocaleString("id-ID")} KM` : null,
             `Merk/tipe/nama part (input user, opsional): ${notes?.trim() || "tidak diisi"}`,
             `Harga ditawarkan penjual: Rp ${offeredPrice}`,
             category === "unit" ? `Status STNK: ${hasStnk ? "ADA (lampiran STNK disertakan)" : "TIDAK ADA (anggap bodong)"}` : null,

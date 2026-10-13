@@ -29,6 +29,7 @@
   --danger-light: #fee2e2;
   --danger-ink: #991b1b;
   --radius: 8px;
+  --radius-sq: 3px;
   --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
   --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.06);
@@ -248,7 +249,7 @@ img {
 }
 
 .step h2 {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -271,11 +272,11 @@ img {
 }
 
 .req {
-  color: var(--accent);
+  color: var(--danger);
 }
 
 .opt {
-  color: var(--muted);
+  color: var(--accent);
 }
 
 .hint {
@@ -308,7 +309,7 @@ img {
   gap: 3px;
   padding: 14px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sq);
   background: var(--surface-2);
   transition: border-color .15s, background-color .15s;
 }
@@ -480,6 +481,7 @@ img {
 .btn-ghost {
   background: var(--surface);
   border-color: var(--line-strong);
+  border-radius: var(--radius-sq);
   color: var(--text);
 }
 
@@ -1229,23 +1231,42 @@ img.platform-icon {
   flex-shrink: 0;
 }
 
-/* ---------- note bullet list ---------- */
+/* ---------- note bullet list & numbering breakdown ---------- */
 .note-list {
   margin: 6px 0 0;
-  padding-left: 22px;
+  padding: 0;
+  list-style: none;
   display: grid;
-  gap: 6px;
+  gap: 7px;
   font-size: 13.5px;
   line-height: 1.6;
   color: var(--text);
 }
 
-.note-list li::marker {
-  font-weight: 700;
-  color: var(--muted);
+.note-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
-.note-list strong {
+.note-marker {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--accent);
+  flex-shrink: 0;
+  min-width: 22px;
+}
+
+.note-bullet-marker {
+  color: var(--muted);
+  min-width: 14px;
+}
+
+.note-body {
+  flex: 1;
+}
+
+.note-body strong {
   color: var(--heading);
 }
 
